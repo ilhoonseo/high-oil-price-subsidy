@@ -267,8 +267,9 @@ async function saveToGitHub() {
     const getResponse = await fetch(getFileUrl, {
       method: 'GET',
       headers: {
-        'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.v3+json'
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'X-GitHub-Api-Version': '2022-11-28'
       }
     });
 
@@ -277,7 +278,7 @@ async function saveToGitHub() {
       const fileInfo = await getResponse.json();
       sha = fileInfo.sha;
     } else if (getResponse.status !== 404) {
-      showToast('서버 권한 확인에 실패했습니다. 시스템 설정 오류일 수 있습니다.', 'danger', 4000);
+      showToast('서버 권한 확인에 실패했습니다. 토큰 권한 설정을 점검해 주세요.', 'danger', 4000);
       return;
     }
 
@@ -291,9 +292,10 @@ async function saveToGitHub() {
     const putResponse = await fetch(getFileUrl, {
       method: 'PUT',
       headers: {
-        'Authorization': `token ${token}`,
+        'Authorization': `Bearer ${token}`,
         'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28'
       },
       body: JSON.stringify({
         message: "data: 고유가피해지원금 수령 현황판 데이터 갱신 (웹 사이트에서 직접 저장)",
