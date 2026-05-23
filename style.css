@@ -606,21 +606,28 @@ input:checked + .slider:before {
   border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
+.check-control.dual-checkboxes {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  width: 100%;
+}
+
 .custom-checkbox {
   display: flex;
   align-items: center;
   position: relative;
-  cursor: not-allowed;
+  cursor: pointer;
   user-select: none;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-muted);
-  gap: 10px;
+  gap: 8px;
   transition: var(--transition-smooth);
+  flex: 1;
 }
 
-.admin-mode .custom-checkbox {
-  cursor: pointer;
+.custom-checkbox:hover {
   color: var(--text-main);
 }
 
@@ -633,33 +640,41 @@ input:checked + .slider:before {
 
 .checkmark {
   position: relative;
-  height: 20px;
-  width: 20px;
+  height: 18px;
+  width: 18px;
   background-color: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
+  border-radius: 5px;
   transition: var(--transition-smooth);
 }
 
-.admin-mode .custom-checkbox:hover input ~ .checkmark {
+.custom-checkbox:hover input ~ .checkmark {
   border-color: var(--color-primary);
   background-color: rgba(99, 102, 241, 0.05);
 }
 
-.custom-checkbox input:checked ~ .checkmark {
+/* 수령 체크박스 활성화 시 에메랄드 */
+.custom-checkbox.cb-received-wrapper input:checked ~ .checkmark {
   background-color: var(--color-success);
   border-color: var(--color-success);
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+/* 미수령 체크박스 활성화 시 로즈 */
+.custom-checkbox.cb-pending-wrapper input:checked ~ .checkmark {
+  background-color: var(--color-danger);
+  border-color: var(--color-danger);
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
 }
 
 .checkmark:after {
   content: "";
   position: absolute;
   display: none;
-  left: 6px;
-  top: 2px;
-  width: 5px;
-  height: 10px;
+  left: 5px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
   border: solid white;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);

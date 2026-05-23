@@ -10,6 +10,19 @@ const PEOPLE_NAMES = [
   "홍정웅", "홍형순"
 ];
 
+// 가운데 글자 O 마스킹 처리 함수
+function maskName(name) {
+  if (!name) return "";
+  if (name.length <= 2) {
+    return name[0] + "O";
+  } else if (name.length === 3) {
+    return name[0] + "O" + name[2];
+  } else {
+    // 4글자 이상일 경우 가운데 부분 모두 마스킹 (예: 남궁곤 -> 남O곤, 남궁OO -> 남OOO 등)
+    return name[0] + "O".repeat(name.length - 2) + name[name.length - 1];
+  }
+}
+
 // 애플리케이션 상태 객체
 const state = {
   people: PEOPLE_NAMES.map((name, index) => ({
@@ -17,7 +30,6 @@ const state = {
     name: name,
     received: false
   })),
-  isAdminMode: false,
   currentFilter: 'all', // 'all', 'received', 'pending'
   searchQuery: ''
 };
@@ -64,17 +76,10 @@ function renderApp() {
   const gridContainer = document.getElementById('people-grid');
   gridContainer.innerHTML = '';
 
-  // 관리자 모드 클래스 바인딩
-  if (state.isAdminMode) {
-    gridContainer.classList.add('admin-mode');
-  } else {
-    gridContainer.classList.remove('admin-mode');
-  }
-
   // 필터 및 검색 적용
   const filteredPeople = state.people.filter(person => {
-    // 검색어 매칭
-    const matchesSearch = person.name.includes(state.searchQuery);
+    // 검색어 매칭 (실명 및 마스킹 이름 둘 다 지원)
+    const matchesSearch = person.name.includes(state.searchQuery) || maskName(person.name).includes(state.searchQuery);
     
     // 탭 필터 매칭
     let matchesFilter = true;
@@ -114,43 +119,37 @@ function renderApp() {
           ${person.received ? '수령 완료' : '미수령'}
         </span>
       </div>
-      <div class="card-name">${person.name}</div>
-      <div class="check-control">
-        <label class="custom-checkbox">
-          <input type="checkbox" ${person.received ? 'checked' : ''} ${!state.isAdminMode ? 'disabled' : ''} data-id="${person.id}">
+      <div class="card-name" title="실명: ${person.name}">${maskName(person.name)}</div>
+      <div class="check-control dual-checkboxes">
+        <label class="custom-checkbox cb-received-wrapper">
+          <input type="checkbox" class="cb-received" ${person.received ? 'checked' : ''} data-id="${person.id}">
           <span class="checkmark"></span>
-          <span>수령 여부</span>
+          <span>수령</span>
+        </label>
+        <label class="custom-checkbox cb-pending-wrapper">
+          <input type="checkbox" class="cb-pending" ${!person.received ? 'checked' : ''} data-id="${person.id}">
+          <span class="checkmark"></span>
+          <span>미수령</span>
         </label>
       </div>
     `;
 
-    // 관리자 모드일 때만 체크박스 클릭 핸들러 추가
-    if (state.isAdminMode) {
-      const checkbox = card.querySelector('input[type="checkbox"]');
-      checkbox.addEventListener('change', (e) => {
-        const id = parseInt(e.target.dataset.id);
-        const isChecked = e.target.checked;
-        
-        // 상태 업데이트
-        state.people[id].received = isChecked;
-        
-        // 해당 카드 스타일 변경
-        if (isChecked) {
-          card.classList.add('received');
-          const badge = card.querySelector('.card-badge');
-          badge.className = 'card-badge badge-success';
-          badge.innerHTML = '<i data-lucide="check"></i> 수령 완료';
-        } else {
-          card.classList.remove('received');
-          const badge = card.querySelector('.card-badge');
-          badge.className = 'card-badge badge-danger';
-          badge.innerHTML = '<i data-lucide="x"></i> 미수령';
-        }
-        
-        lucide.createIcons();
-        updateDashboardStats();
-      });
-    }
+    const cbReceived = card.querySelector('.cb-received');
+    const cbPending = card.querySelector('.cb-pending');
+
+    // 수령 체크박스 변경 핸들러
+    cbReceived.addEventListener('change', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      state.people[id].received = e.target.checked;
+      renderApp(); // 전체 다시 렌더링하여 배지, 클래스, 통계 즉시 자동 동기화
+    });
+
+    // 미수령 체크박스 변경 핸들러
+    cbPending.addEventListener('change', (e) => {
+      const id = parseInt(e.target.dataset.id);
+      state.people[id].received = !e.target.checked;
+      renderApp(); // 전체 다시 렌더링하여 배지, 클래스, 통계 즉시 자동 동기화
+    });
 
     gridContainer.appendChild(card);
   });
@@ -242,7 +241,7 @@ function loadInitialState() {
   }
 
   // 3) 모두 없으면 기본 미수령(false) 상태로 로드
-  showToast('현황판이 준비되었습니다. 편집하려면 관리자 모드를 켜주세요.', 'info', 4000);
+  showToast('현황판이 준비되었습니다. 자유롭게 수령 여부를 체크하고 저장/공유해 보세요.', 'info', 5000);
 }
 
 // 7. 이벤트 리스너 등록
@@ -252,18 +251,6 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // UI 최초 렌더링
   renderApp();
-
-  // 관리자 모드 스위치
-  const adminSwitch = document.getElementById('admin-switch');
-  adminSwitch.addEventListener('change', (e) => {
-    state.isAdminMode = e.target.checked;
-    renderApp();
-    if (state.isAdminMode) {
-      showToast('관리자 편집 모드가 활성화되었습니다. 체크박스를 수정할 수 있습니다.', 'success');
-    } else {
-      showToast('관리자 편집 모드가 비활성화되었습니다. 읽기 전용 상태입니다.', 'info');
-    }
-  });
 
   // 검색 기능 (실시간 필터링)
   const searchInput = document.getElementById('search-input');
