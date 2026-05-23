@@ -1,0 +1,13 @@
+# OS
+.DS_Store
+Thumbs.db
+db.properties
+
+# Editor Settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

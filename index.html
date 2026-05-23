@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>고유가 피해 지원금 수령 현황판</title>
+  <!-- Google Fonts: Outfit, Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="background-glow">
+    <div class="glow-1"></div>
+    <div class="glow-2"></div>
+  </div>
+
+  <div class="container">
+    <!-- Header Section -->
+    <header class="app-header">
+      <div class="badge-container">
+        <span class="status-badge live"><i data-lucide="radio"></i> 실시간 상태 공유 가능</span>
+      </div>
+      <h1>고유가 피해 지원금 <span>수령 현황판</span></h1>
+      <p class="subtitle">대상자 분들의 지원금 수령 여부를 확인하고 투명하게 관리할 수 있는 현황판입니다.</p>
+    </header>
+
+    <!-- Dashboard Statistics -->
+    <section class="stats-dashboard glass-panel">
+      <div class="stat-card">
+        <div class="stat-icon-wrapper blue">
+          <i data-lucide="users"></i>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">총 대상자</span>
+          <span class="stat-value" id="stat-total">0</span><span class="stat-unit">명</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrapper green">
+          <i data-lucide="check-circle-2"></i>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">수령 완료</span>
+          <span class="stat-value text-success" id="stat-received">0</span><span class="stat-unit">명</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrapper red">
+          <i data-lucide="x-circle"></i>
+        </div>
+        <div class="stat-content">
+          <span class="stat-label">미수령</span>
+          <span class="stat-value text-danger" id="stat-pending">0</span><span class="stat-unit">명</span>
+        </div>
+      </div>
+      <div class="progress-container-wrapper">
+        <div class="progress-info">
+          <span class="progress-label">전체 지급률</span>
+          <span class="progress-percentage" id="stat-percentage">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-fill" style="width: 0%"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Toolbar Section -->
+    <section class="toolbar glass-panel">
+      <div class="search-box">
+        <i data-lucide="search" class="search-icon"></i>
+        <input type="text" id="search-input" placeholder="이름으로 검색..." autocomplete="off">
+      </div>
+
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="all">전체</button>
+        <button class="filter-tab" data-filter="received">수령</button>
+        <button class="filter-tab" data-filter="pending">미수령</button>
+      </div>
+
+      <div class="admin-toggle-wrapper">
+        <span class="admin-label">관리자 편집 모드</span>
+        <label class="switch">
+          <input type="checkbox" id="admin-switch">
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <div class="action-buttons">
+        <button id="btn-share" class="btn btn-primary" title="현재 체크 상태를 복사하여 공유할 수 있는 URL을 생성합니다.">
+          <i data-lucide="share-2"></i> 공유 링크 생성
+        </button>
+        <button id="btn-save" class="btn btn-secondary" title="현재 상태를 이 기기의 브라우저에 저장합니다.">
+          <i data-lucide="save"></i> 로컬에 저장
+        </button>
+      </div>
+    </section>
+
+    <!-- Content Grid -->
+    <main class="grid-container" id="people-grid">
+      <!-- Cards will be dynamically injected by JS -->
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="app-footer">
+      <p>💡 <b>상태 공유 방법</b>: 관리자 편집 모드를 켜고 체크박스를 조정한 후, <b>[공유 링크 생성]</b>을 누르면 생성되는 주소를 다른 사람들에게 보내주세요.</p>
+      <p class="copyright">&copy; 2026 고유가피해지원금 현황 관리 시스템. All Rights Reserved.</p>
+    </footer>
+  </div>
+
+  <!-- Toast Notification System -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>
