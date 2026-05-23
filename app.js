@@ -202,30 +202,47 @@ function showToast(message, type = 'info', duration = 3000) {
   }, duration);
 }
 
-// 6. 상태 로드 및 분석 (URL -> LocalStorage -> Default)
-function loadInitialState() {
+// 6. 상태 로드 및 분석 (URL -> GitHub Server data.json -> LocalStorage -> Default)
+async function loadInitialState() {
   const urlParams = new URLSearchParams(window.location.search);
   const stateParam = urlParams.get('state');
 
+  // 1) URL 파라미터가 최우선
   if (stateParam && stateParam.length === 10) {
-    // 1) URL 파라미터가 최우선
     try {
       const receivedArray = decodeState(stateParam);
       state.people.forEach((p, idx) => {
         p.received = receivedArray[idx] || false;
       });
-      showToast('공유 링크를 통해 수령 현황을 불러왔습니다!', 'success');
-      
-      // URL에서 지저분한 쿼리를 남겨둘지 말지 고민이나, 
-      // 새로고침해도 유지되게 그대로 두는 것이 맞습니다.
+      showToast('공유 링크를 통해 수령 현황을 성공적으로 불러왔습니다!', 'success');
+      renderApp();
       return;
     } catch (e) {
       console.error('URL 상태 디코딩 실패', e);
-      showToast('공유 링크 분석에 실패했습니다. 기본 값으로 복원합니다.', 'danger');
+      showToast('공유 링크 분석에 실패했습니다.', 'danger');
     }
   }
 
-  // 2) 로컬 스토리지 확인
+  // 2) GitHub Pages 서버에 배포된 data.json 로드 시도 (실질적인 DB 역할)
+  try {
+    // 캐시 방지 쿼리 추가
+    const response = await fetch('data.json?t=' + new Date().getTime());
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data) && data.length === state.people.length) {
+        state.people.forEach((p, idx) => {
+          p.received = !!data[idx];
+        });
+        showToast('GitHub Pages에서 최신 수령 현황 데이터를 불러왔습니다.', 'success');
+        renderApp();
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn('서버 data.json 불러오기 실패, 로컬 저장소 확인으로 넘어갑니다.', err);
+  }
+
+  // 3) 로컬 임시 저장소 확인 (브라우저 localStorage)
   const localSaved = localStorage.getItem('gas_subsidy_state');
   if (localSaved && localSaved.length === 10) {
     try {
@@ -233,24 +250,113 @@ function loadInitialState() {
       state.people.forEach((p, idx) => {
         p.received = receivedArray[idx] || false;
       });
-      showToast('이 기기에 마지막으로 저장된 데이터를 불러왔습니다.', 'info');
+      showToast('이 기기에 임시 저장된 수령 현황을 불러왔습니다.', 'info');
+      renderApp();
       return;
     } catch (e) {
       console.error('로컬스토리지 디코딩 실패', e);
     }
   }
 
-  // 3) 모두 없으면 기본 미수령(false) 상태로 로드
-  showToast('현황판이 준비되었습니다. 자유롭게 수령 여부를 체크하고 저장/공유해 보세요.', 'info', 5000);
+  // 4) 모두 없으면 기본 미수령(false) 상태로 로드
+  showToast('현황판이 준비되었습니다. 자유롭게 수령 여부를 체크해 보세요.', 'info', 5000);
+  renderApp();
 }
 
-// 7. 이벤트 리스너 등록
-document.addEventListener('DOMContentLoaded', () => {
-  // 초기 상태 불러오기
-  loadInitialState();
+// 7. GitHub API 직접 커밋 및 푸시 함수 (영구 저장 메커니즘)
+async function saveToGitHub() {
+  const token = localStorage.getItem('github_token');
+  if (!token) {
+    // 토큰이 없으면 모달 창 오픈
+    openGitModal();
+    return;
+  }
+
+  showToast('GitHub 저장소 연결 시도 중...', 'info', 2000);
+  const repo = "ilhoonseo/high-oil-price-subsidy";
+  const filePath = "data.json";
   
-  // UI 최초 렌더링
-  renderApp();
+  try {
+    // 1) 기존 data.json 파일의 현재 SHA 해시 가져오기 (커밋 시 필수 필수)
+    const getFileUrl = `https://api.github.com/repos/${repo}/contents/${filePath}`;
+    const getResponse = await fetch(getFileUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+
+    let sha = "";
+    if (getResponse.ok) {
+      const fileInfo = await getResponse.json();
+      sha = fileInfo.sha;
+    } else if (getResponse.status !== 404) {
+      // 404가 아니면서 실패한 경우 토큰이 만료되었거나 권한 없음
+      showToast('GitHub 권한 확인에 실패했습니다. 토큰을 다시 설정해 주세요.', 'danger', 4000);
+      openGitModal();
+      return;
+    }
+
+    // 2) 신규 파일 내용 준비 (37명의 boolean 배열 형태로 직렬화 후 Base64 인코딩)
+    const currentBooleanData = state.people.map(p => p.received);
+    const jsonString = JSON.stringify(currentBooleanData, null, 2);
+    // 한글이나 공백 등이 깨지지 않도록 안전한 UTF-8 인코딩
+    const base64Content = btoa(unescape(encodeURIComponent(jsonString)));
+
+    // 3) GitHub REST API PUT 호출로 즉시 커밋
+    const putResponse = await fetch(getFileUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: "data: 고유가피해지원금 수령 현황판 데이터 갱신 (웹 사이트에서 직접 저장)",
+        content: base64Content,
+        sha: sha || undefined, // 신규 생성이면 sha 불필요, 업데이트면 필수
+        branch: "main"
+      })
+    });
+
+    if (putResponse.ok) {
+      showToast('🎉 GitHub 저장소에 영구 저장이 완료되었습니다! 약 30초 내에 배포가 갱신됩니다.', 'success', 6000);
+    } else {
+      const errData = await putResponse.json();
+      console.error('GitHub 저장 오류', errData);
+      showToast(`저장 오류: ${errData.message || '알 수 없는 오류'}`, 'danger', 5000);
+    }
+  } catch (err) {
+    console.error('GitHub API 호출 에러', err);
+    showToast('네트워크 오류가 발생했습니다. GitHub 연결 상태를 점검하세요.', 'danger');
+  }
+}
+
+// 8. 모달 제어 함수
+function openGitModal() {
+  const modal = document.getElementById('git-modal');
+  const tokenInput = document.getElementById('git-token');
+  
+  // 기존에 저장된 토큰이 있으면 넣어줌
+  const savedToken = localStorage.getItem('github_token');
+  if (savedToken) {
+    tokenInput.value = savedToken;
+  } else {
+    tokenInput.value = "";
+  }
+  
+  modal.classList.add('active');
+}
+
+function closeGitModal() {
+  document.getElementById('git-modal').classList.remove('active');
+}
+
+// 9. 이벤트 리스너 등록
+document.addEventListener('DOMContentLoaded', () => {
+  // 비동기로 초기 상태 로드 시작
+  loadInitialState();
 
   // 검색 기능 (실시간 필터링)
   const searchInput = document.getElementById('search-input');
@@ -286,16 +392,48 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .catch(err => {
         console.error('클립보드 복사 실패', err);
-        // 대체 수단: 프롬프트 창으로 직접 주소 제공
         window.prompt('아래 주소를 복사하여 공유해 주세요:', shareUrl);
       });
   });
 
-  // [로컬에 저장] 버튼
+  // [로컬에 임시 저장] 버튼
   const btnSave = document.getElementById('btn-save');
   btnSave.addEventListener('click', () => {
     const hexCode = encodeState(state.people);
     localStorage.setItem('gas_subsidy_state', hexCode);
-    showToast('현재 체크 상태가 이 기기(브라우저)에 성공적으로 저장되었습니다!', 'success');
+    showToast('현재 체크 상태가 이 기기(브라우저)에 임시로 저장되었습니다!', 'success');
+  });
+
+  // [GitHub에 영구 저장] 버튼
+  const btnGitSave = document.getElementById('btn-git-save');
+  btnGitSave.addEventListener('click', () => {
+    saveToGitHub();
+  });
+
+  // 모달 제어 이벤트 바인딩
+  document.getElementById('modal-close').addEventListener('click', closeGitModal);
+  document.getElementById('btn-modal-cancel').addEventListener('click', closeGitModal);
+  
+  // 모달 외부 클릭 시 닫기
+  document.getElementById('git-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'git-modal') {
+      closeGitModal();
+    }
+  });
+
+  // 모달 [토큰 저장 및 연결] 버튼
+  document.getElementById('btn-modal-save').addEventListener('click', () => {
+    const tokenVal = document.getElementById('git-token').value.trim();
+    if (!tokenVal) {
+      showToast('GitHub 토큰을 입력해 주세요.', 'danger');
+      return;
+    }
+    
+    localStorage.setItem('github_token', tokenVal);
+    closeGitModal();
+    showToast('GitHub 토큰이 브라우저에 임시 보존되었습니다.', 'success');
+    
+    // 저장 후 즉시 커밋 시도
+    saveToGitHub();
   });
 });

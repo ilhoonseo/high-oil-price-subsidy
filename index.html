@@ -85,8 +85,11 @@
         <button id="btn-share" class="btn btn-primary" title="현재 체크 상태를 복사하여 공유할 수 있는 URL을 생성합니다.">
           <i data-lucide="share-2"></i> 공유 링크 생성
         </button>
-        <button id="btn-save" class="btn btn-secondary" title="현재 상태를 이 기기의 브라우저에 저장합니다.">
-          <i data-lucide="save"></i> 로컬에 저장
+        <button id="btn-save" class="btn btn-secondary" title="현재 상태를 이 기기의 브라우저에 임시 저장합니다.">
+          <i data-lucide="save"></i> 로컬에 임시 저장
+        </button>
+        <button id="btn-git-save" class="btn btn-git" title="관리자 권한으로 변경 내역을 GitHub 저장소에 커밋하여 웹사이트 전체 기본값을 갱신합니다.">
+          <i data-lucide="github"></i> GitHub에 영구 저장
         </button>
       </div>
     </section>
@@ -98,9 +101,38 @@
 
     <!-- Footer Section -->
     <footer class="app-footer">
-      <p>💡 <b>상태 공유 방법</b>: 대상자 옆의 수령/미수령 체크박스를 변경한 후, <b>[공유 링크 생성]</b>을 누르면 생성되는 주소를 다른 사람들에게 보내주세요.</p>
+      <p>💡 <b>데이터 저장 방법</b>: 일반 이용자는 <b>[공유 링크 생성]</b>으로 상태를 전달하거나 <b>[로컬에 임시 저장]</b>을 쓸 수 있습니다.</p>
+      <p>🔑 <b>관리자 팁</b>: <b>[GitHub에 영구 저장]</b>을 누르고 깃헙 토큰을 연동하면 데이터베이스 없이도 이 웹사이트의 기본 상태 자체를 영구적으로 변경할 수 있습니다.</p>
       <p class="copyright">&copy; 2026 고유가피해지원금 현황 관리 시스템. All Rights Reserved.</p>
     </footer>
+  </div>
+
+  <!-- GitHub Token Configuration Modal -->
+  <div class="modal-overlay" id="git-modal">
+    <div class="modal-content glass-panel">
+      <div class="modal-header">
+        <h2><i data-lucide="github"></i> GitHub Pages 영구 저장 연동</h2>
+        <button class="modal-close-btn" id="modal-close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">수령 여부 데이터(`data.json`)를 GitHub 저장소에 직접 커밋/푸시하여, 웹페이지에 새로 접속하는 모든 사람들에게 최신 현황을 기본값으로 보여주게 합니다.</p>
+        
+        <div class="form-group">
+          <label for="git-token">GitHub Personal Access Token (PAT)</label>
+          <input type="password" id="git-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+          <span class="input-tip">`repo` 권한이 체크된 깃헙 토큰이 필요합니다. 토큰은 서버로 전송되지 않고 안전하게 본인 브라우저에만 암호화/저장됩니다.</span>
+        </div>
+        
+        <div class="form-group">
+          <label for="git-repo">대상 저장소</label>
+          <input type="text" id="git-repo" value="ilhoonseo/high-oil-price-subsidy" readonly>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-modal-cancel">취소</button>
+        <button class="btn btn-primary" id="btn-modal-save">토큰 저장 및 연결</button>
+      </div>
+    </div>
   </div>
 
   <!-- Toast Notification System -->
