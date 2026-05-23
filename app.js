@@ -206,11 +206,11 @@ function showToast(message, type = 'info', duration = 3000) {
 async function loadInitialState() {
   const urlParams = new URLSearchParams(window.location.search);
   
-  // 0) URL을 통한 GitHub 토큰 자동 연동 & 주소 세척 (관리자 편의 극대화)
+  // 0) URL을 통한 GitHub 토큰 자동 연동 & 주소 세척 (사용자 편의 극대화)
   const tokenParam = urlParams.get('token');
   if (tokenParam) {
     localStorage.setItem('github_token', tokenParam);
-    showToast('🔑 GitHub 관리자 토큰이 성공적으로 자동 연동되었습니다!', 'success', 5000);
+    showToast('🔑 GitHub 저장소 연동 토큰이 성공적으로 자동 등록되었습니다!', 'success', 5000);
     
     // 주소창에서 토큰 파라미터를 즉시 지워 보안을 유지합니다.
     urlParams.delete('token');
