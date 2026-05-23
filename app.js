@@ -256,23 +256,7 @@ async function loadInitialState() {
     console.warn('서버 data.json 불러오기 실패, 로컬 저장소 확인으로 넘어갑니다.', err);
   }
 
-  // 3) 로컬 임시 저장소 확인 (브라우저 localStorage)
-  const localSaved = localStorage.getItem('gas_subsidy_state');
-  if (localSaved && localSaved.length === 10) {
-    try {
-      const receivedArray = decodeState(localSaved);
-      state.people.forEach((p, idx) => {
-        p.received = receivedArray[idx] || false;
-      });
-      showToast('이 기기에 임시 저장된 수령 현황을 불러왔습니다.', 'info');
-      renderApp();
-      return;
-    } catch (e) {
-      console.error('로컬스토리지 디코딩 실패', e);
-    }
-  }
-
-  // 4) 모두 없으면 기본 미수령(false) 상태로 로드
+  // 3) 모두 없으면 기본 미수령(false) 상태로 로드
   showToast('현황판이 준비되었습니다. 자유롭게 수령 여부를 체크해 보세요.', 'info', 5000);
   renderApp();
 }
@@ -408,14 +392,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('클립보드 복사 실패', err);
         window.prompt('아래 주소를 복사하여 공유해 주세요:', shareUrl);
       });
-  });
-
-  // [로컬에 임시 저장] 버튼
-  const btnSave = document.getElementById('btn-save');
-  btnSave.addEventListener('click', () => {
-    const hexCode = encodeState(state.people);
-    localStorage.setItem('gas_subsidy_state', hexCode);
-    showToast('현재 체크 상태가 이 기기(브라우저)에 임시로 저장되었습니다!', 'success');
   });
 
   // [GitHub에 영구 저장] 버튼
