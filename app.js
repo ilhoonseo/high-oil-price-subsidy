@@ -35,17 +35,21 @@ const state = {
   people: PEOPLE_NAMES.map((name, index) => ({
     id: index,
     name: name,
-    received: false
+    received: null
   })),
   currentFilter: 'all', // 'all', 'received', 'pending'
   searchQuery: ''
 };
 
-// 1. 상태 인코딩 알고리즘 (37개 boolean 배열 -> 10자리 16진수 문자열)
+// 1. 상태 인코딩 알고리즘 (37개 3-state 배열 -> 20자리 16진수 문자열)
 function encodeState(peopleArray) {
-  let binaryStr = peopleArray.map(p => p.received ? '1' : '0').join('');
-  // 40비트로 채우기 위해 뒤에 3비트 '0' 패딩 추가 (37비트 + 3비트 = 40비트)
-  binaryStr = binaryStr.padEnd(40, '0');
+  let binaryStr = peopleArray.map(p => {
+    if (p.received === true) return '10';
+    if (p.received === false) return '01';
+    return '00';
+  }).join('');
+  // 37 * 2 = 74비트. 80비트(20자리 16진수)로 채우기 위해 뒤에 6비트 '0' 패딩 추가
+  binaryStr = binaryStr.padEnd(80, '0');
   
   let hexStr = '';
   for (let i = 0; i < binaryStr.length; i += 4) {
@@ -55,27 +59,57 @@ function encodeState(peopleArray) {
   return hexStr;
 }
 
-// 2. 상태 디코딩 알고리즘 (10자리 16진수 문자열 -> 37개 boolean 배열)
+// 2. 상태 디코딩 알고리즘 (20자리 또는 10자리 16진수 문자열 -> 37개 3-state 배열)
 function decodeState(hexStr) {
-  if (!hexStr || hexStr.length !== 10) {
-    return new Array(PEOPLE_NAMES.length).fill(false);
+  if (!hexStr) {
+    return new Array(PEOPLE_NAMES.length).fill(null);
   }
   
-  let binaryStr = '';
-  for (let i = 0; i < hexStr.length; i++) {
-    const hexChar = hexStr[i];
-    const parsed = parseInt(hexChar, 16);
-    if (isNaN(parsed)) {
-      return new Array(PEOPLE_NAMES.length).fill(false);
+  // 하위 호환성: 이전 10자리 포맷 (boolean 만 존재)
+  if (hexStr.length === 10) {
+    let binaryStr = '';
+    for (let i = 0; i < hexStr.length; i++) {
+      const hexChar = hexStr[i];
+      const parsed = parseInt(hexChar, 16);
+      if (isNaN(parsed)) {
+        return new Array(PEOPLE_NAMES.length).fill(null);
+      }
+      binaryStr += parsed.toString(2).padStart(4, '0');
     }
-    binaryStr += parsed.toString(2).padStart(4, '0');
+    const receivedArray = [];
+    for (let i = 0; i < PEOPLE_NAMES.length; i++) {
+      receivedArray.push(binaryStr[i] === '1');
+    }
+    return receivedArray;
   }
   
-  const receivedArray = [];
-  for (let i = 0; i < PEOPLE_NAMES.length; i++) {
-    receivedArray.push(binaryStr[i] === '1');
+  // 신규 20자리 포맷 (3-state)
+  if (hexStr.length === 20) {
+    let binaryStr = '';
+    for (let i = 0; i < hexStr.length; i++) {
+      const hexChar = hexStr[i];
+      const parsed = parseInt(hexChar, 16);
+      if (isNaN(parsed)) {
+        return new Array(PEOPLE_NAMES.length).fill(null);
+      }
+      binaryStr += parsed.toString(2).padStart(4, '0');
+    }
+    
+    const receivedArray = [];
+    for (let i = 0; i < PEOPLE_NAMES.length; i++) {
+      const chunk = binaryStr.substring(i * 2, i * 2 + 2);
+      if (chunk === '10') {
+        receivedArray.push(true);
+      } else if (chunk === '01') {
+        receivedArray.push(false);
+      } else {
+        receivedArray.push(null);
+      }
+    }
+    return receivedArray;
   }
-  return receivedArray;
+  
+  return new Array(PEOPLE_NAMES.length).fill(null);
 }
 
 // 3. UI 렌더링 함수
@@ -91,9 +125,9 @@ function renderApp() {
     // 탭 필터 매칭
     let matchesFilter = true;
     if (state.currentFilter === 'received') {
-      matchesFilter = person.received;
+      matchesFilter = person.received === true;
     } else if (state.currentFilter === 'pending') {
-      matchesFilter = !person.received;
+      matchesFilter = person.received === false;
     }
     
     return matchesSearch && matchesFilter;
@@ -115,26 +149,30 @@ function renderApp() {
   // 카드 렌더링
   filteredPeople.forEach(person => {
     const card = document.createElement('div');
-    card.className = `person-card ${person.received ? 'received' : ''}`;
+    card.className = `person-card ${person.received === true ? 'received' : (person.received === false ? 'pending' : '')}`;
     card.dataset.id = person.id;
+
+    const badgeClass = person.received === true ? 'badge-success' : (person.received === false ? 'badge-danger' : 'badge-neutral');
+    const badgeIcon = person.received === true ? 'check' : (person.received === false ? 'x' : 'help-circle');
+    const badgeText = person.received === true ? '수령 완료' : (person.received === false ? '미수령' : '선택 대기');
 
     card.innerHTML = `
       <div class="card-header">
         <span class="card-num">No. ${String(person.id + 1).padStart(2, '0')}</span>
-        <span class="card-badge ${person.received ? 'badge-success' : 'badge-danger'}">
-          <i data-lucide="${person.received ? 'check' : 'x'}"></i>
-          ${person.received ? '수령 완료' : '미수령'}
+        <span class="card-badge ${badgeClass}">
+          <i data-lucide="${badgeIcon}"></i>
+          ${badgeText}
         </span>
       </div>
       <div class="card-name" title="실명: ${person.name}">${maskName(person.name)}</div>
       <div class="check-control dual-checkboxes">
         <label class="custom-checkbox cb-received-wrapper">
-          <input type="checkbox" class="cb-received" ${person.received ? 'checked' : ''} data-id="${person.id}">
+          <input type="checkbox" class="cb-received" ${person.received === true ? 'checked' : ''} data-id="${person.id}">
           <span class="checkmark"></span>
           <span>수령</span>
         </label>
         <label class="custom-checkbox cb-pending-wrapper">
-          <input type="checkbox" class="cb-pending" ${!person.received ? 'checked' : ''} data-id="${person.id}">
+          <input type="checkbox" class="cb-pending" ${person.received === false ? 'checked' : ''} data-id="${person.id}">
           <span class="checkmark"></span>
           <span>미수령</span>
         </label>
@@ -147,14 +185,14 @@ function renderApp() {
     // 수령 체크박스 변경 핸들러
     cbReceived.addEventListener('change', (e) => {
       const id = parseInt(e.target.dataset.id);
-      state.people[id].received = e.target.checked;
+      state.people[id].received = e.target.checked ? true : null;
       renderApp(); // 전체 다시 렌더링하여 배지, 클래스, 통계 즉시 자동 동기화
     });
 
     // 미수령 체크박스 변경 핸들러
     cbPending.addEventListener('change', (e) => {
       const id = parseInt(e.target.dataset.id);
-      state.people[id].received = !e.target.checked;
+      state.people[id].received = e.target.checked ? false : null;
       renderApp(); // 전체 다시 렌더링하여 배지, 클래스, 통계 즉시 자동 동기화
     });
 
@@ -168,8 +206,8 @@ function renderApp() {
 // 4. 대시보드 통계 업데이트 함수
 function updateDashboardStats() {
   const total = state.people.length;
-  const received = state.people.filter(p => p.received).length;
-  const pending = total - received;
+  const received = state.people.filter(p => p.received === true).length;
+  const pending = state.people.filter(p => p.received === false).length;
   const percentage = total > 0 ? Math.round((received / total) * 100) : 0;
 
   // DOM 반영
@@ -219,7 +257,7 @@ async function loadInitialState() {
     try {
       const receivedArray = decodeState(stateParam);
       state.people.forEach((p, idx) => {
-        p.received = receivedArray[idx] || false;
+        p.received = receivedArray[idx];
       });
       showToast('공유 링크를 통해 수령 현황을 성공적으로 불러왔습니다!', 'success');
       renderApp();
@@ -238,7 +276,7 @@ async function loadInitialState() {
       const data = await response.json();
       if (Array.isArray(data) && data.length === state.people.length) {
         state.people.forEach((p, idx) => {
-          p.received = !!data[idx];
+          p.received = data[idx];
         });
         showToast('GitHub Pages에서 최신 수령 현황 데이터를 불러왔습니다.', 'success');
         renderApp();

@@ -546,6 +546,21 @@ input:checked + .slider:before {
   box-shadow: 0 10px 25px var(--color-success-glow);
 }
 
+/* Card State: Pending (미수령) */
+.person-card.pending {
+  background: rgba(244, 63, 94, 0.01);
+  border-color: var(--color-danger-border);
+}
+
+.person-card.pending::before {
+  background: linear-gradient(135deg, var(--color-danger-border), transparent) border-box;
+}
+
+.person-card.pending:hover {
+  border-color: var(--color-danger);
+  box-shadow: 0 10px 25px rgba(244, 63, 94, 0.15);
+}
+
 /* Card Header */
 .card-header {
   display: flex;
@@ -583,6 +598,12 @@ input:checked + .slider:before {
   background: var(--color-danger-bg);
   color: var(--color-danger);
   border: 1px solid var(--color-danger-border);
+}
+
+.card-badge.badge-neutral {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .card-badge i {
